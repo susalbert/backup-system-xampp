@@ -1,47 +1,79 @@
 <?php
-// registro.php - Registro de nuevos usuarios
+// recuperar.php - Solicitar recuperacion de contraseña
 require_once 'config.php';
+
+// Incluir PHPMailer
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once 'PHPMailer/Exception.php';
+require_once 'PHPMailer/PHPMailer.php';
+require_once 'PHPMailer/SMTP.php';
 
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nombre = trim($_POST['nombre']);
     $email = trim($_POST['email']);
-    $password = $_POST['password'];
-    $confirm = $_POST['confirm_password'];
 
-    // Validar campos
-    if (empty($nombre) || empty($email) || empty($password)) {
-        $error = "Todos los campos son obligatorios";
-    } elseif ($password != $confirm) {
-        $error = "Las contraseñas no coinciden";
-    } elseif (strlen($password) < 4) {
-        $error = "La contraseña debe tener al menos 4 caracteres";
+    if (empty($email)) {
+        $error = "Ingresa tu email";
     } else {
-        // Verificar si el email ya existe
-        $stmt = $conn->prepare("SELECT id FROM usuarios WHERE email = ?");
+        // Buscar usuario
+        $stmt = $conn->prepare("SELECT id, nombre FROM usuarios WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
-            $error = "Este email ya está registrado";
+        if ($result->num_rows == 1) {
+            $user = $result->fetch_assoc();
+            $user_id = $user['id'];
+
+            // Generar token unico
+            $token = bin2hex(random_bytes(32));
+            $expira = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+            // Guardar token
+            $stmt = $conn->prepare("INSERT INTO recuperacion (user_id, token, expira) VALUES (?, ?, ?)");
+            $stmt->bind_param("iss", $user_id, $token, $expira);
+            $stmt->execute();
+
+            // Enviar correo
+            $mail = new PHPMailer(true);
+            
+try {
+    // Configurar servidor SMTP de Gmail
+    $mail->isSMTP();
+    $mail->Host = 'smtp.gmail.com';
+    $mail->SMTPAuth = true;
+    $mail->Username = 'u9asd8hyasd@gmail.com';
+    $mail->Password = 'jlhj betr ptyl zsba';
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port = 587;
+    $mail->CharSet = 'UTF-8';
+
+    // Configurar destinatario
+    $mail->setFrom('u9asd8hyasd@gmail.com', '=?UTF-8?B?' . base64_encode('Mi Proyecto Web') . '?=');
+    $mail->addAddress($email, $user['nombre']);
+    
+    // Contenido del correo
+    $mail->isHTML(false);
+    $mail->Subject = '=?UTF-8?B?' . base64_encode('Recuperar tu contraseña') . '?=';
+    $link = "http://localhost/mi_proyecto/reset_password.php?token=" . $token;
+    $mail->Body = "Hola " . $user['nombre'] . ",\n\n";
+    $mail->Body .= "Haz clic en el siguiente enlace para cambiar tu contraseña:\n\n";
+    $mail->Body .= $link . "\n\n";
+    $mail->Body .= "El enlace expira en 1 hora.\n\n";
+    $mail->Body .= "Si no solicitaste esto, ignora este mensaje.";
+
+    $mail->send();
+    $success = "Se ha enviado un enlace a tu correo electronico. Revisa tu bandeja de entrada.";
+} catch (Exception $e) {
+    $error = "No se pudo enviar el correo. Error: " . $mail->ErrorInfo;
+}
         } else {
-            // Encriptar contraseña
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-
-            // Insertar usuario
-            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, email, contraseña) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $nombre, $email, $hash);
-
-            if ($stmt->execute()) {
-                $success = "✅ Registro exitoso. Ya puedes iniciar sesión.";
-            } else {
-                $error = "❌ Error al registrar. Intenta de nuevo.";
-            }
+            $error = "❌ No existe una cuenta con ese email";
         }
-        $stmt->close();
     }
 }
 ?>
@@ -50,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro</title>
+    <title>Recuperar Contraseña</title>
     <link rel="icon" href="media/icono.png" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -290,14 +322,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <nav>
                 <a href="index.php">Inicio</a>
                 <a href="login.php">Login</a>
-                <a href="registro.php" style="color: orangered;">Registro</a>
+                <a href="registro.php">Registro</a>
             </nav>
         </div>
     </header>
 
     <main class="container">
         <div class="formulario">
-            <h2>📝 Registro de Usuario</h2>
+            <h2>🔐 Recuperar Contraseña</h2>
 
             <?php if($error): ?>
                 <div class="alert alert-error">❌ <?php echo $error; ?></div>
@@ -305,37 +337,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             <?php if($success): ?>
                 <div class="alert alert-success">✅ <?php echo $success; ?></div>
+                <div class="enlace">
+                    <a href="login.php">← Volver al inicio de sesión</a>
+                </div>
+            <?php else: ?>
+                <form method="POST" action="">
+                    <div class="form-group">
+                        <label>📧 Email</label>
+                        <input type="email" name="email" placeholder="tu@email.com" required>
+                    </div>
+                    <button type="submit" class="btn">Enviar enlace al correo</button>
+                </form>
+                <div class="enlace">
+                    <a href="login.php">← Volver al login</a>
+                </div>
             <?php endif; ?>
-
-            <form method="POST" action="">
-                <div class="form-group">
-                    <label>👤 Nombre</label>
-                    <input type="text" name="nombre" placeholder="Ej: Juan Pérez" required>
-                </div>
-                <div class="form-group">
-                    <label>📧 Email</label>
-                    <input type="email" name="email" placeholder="tu@email.com" required>
-                </div>
-                <div class="form-group">
-                    <label>🔒 Contraseña</label>
-                    <input type="password" name="password" placeholder="••••••••" required>
-                </div>
-                <div class="form-group">
-                    <label>🔒 Confirmar Contraseña</label>
-                    <input type="password" name="confirm_password" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn">Registrarse</button>
-            </form>
-            
-            <div class="enlace">
-                ¿Ya tienes cuenta? <a href="login.php">Inicia sesión aquí</a>
-            </div>
         </div>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 - Registro de Usuarios</p>
+            <p>&copy; 2026 - Recuperar Contraseña</p>
         </div>
     </footer>
 </body>

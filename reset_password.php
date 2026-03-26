@@ -1,47 +1,59 @@
 <?php
-// registro.php - Registro de nuevos usuarios
+// reset_password.php - Cambiar contraseña con token
 require_once 'config.php';
 
 $error = '';
 $success = '';
+$token = isset($_GET['token']) ? $_GET['token'] : '';
+
+if (empty($token)) {
+    die("Token no válido");
+}
+
+// Verificar token
+$stmt = $conn->prepare("SELECT r.user_id, r.expira, u.email, u.nombre FROM recuperacion r JOIN usuarios u ON r.user_id = u.id WHERE r.token = ? AND r.usado = 0");
+$stmt->bind_param("s", $token);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows == 0) {
+    die("Token no válido o ya usado");
+}
+
+$row = $result->fetch_assoc();
+$expira = strtotime($row['expira']);
+$now = time();
+
+if ($now > $expira) {
+    die("El enlace ha expirado. Solicita uno nuevo.");
+}
+
+$user_id = $row['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nombre = trim($_POST['nombre']);
-    $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
 
-    // Validar campos
-    if (empty($nombre) || empty($email) || empty($password)) {
-        $error = "Todos los campos son obligatorios";
+    if (empty($password)) {
+        $error = "Ingresa una contraseña";
     } elseif ($password != $confirm) {
         $error = "Las contraseñas no coinciden";
     } elseif (strlen($password) < 4) {
         $error = "La contraseña debe tener al menos 4 caracteres";
     } else {
-        // Verificar si el email ya existe
-        $stmt = $conn->prepare("SELECT id FROM usuarios WHERE email = ?");
-        $stmt->bind_param("s", $email);
+        $hash = password_hash($password, PASSWORD_DEFAULT);
+
+        // Actualizar contraseña
+        $stmt = $conn->prepare("UPDATE usuarios SET contraseña = ? WHERE id = ?");
+        $stmt->bind_param("si", $hash, $user_id);
         $stmt->execute();
-        $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
-            $error = "Este email ya está registrado";
-        } else {
-            // Encriptar contraseña
-            $hash = password_hash($password, PASSWORD_DEFAULT);
+        // Marcar token como usado
+        $stmt = $conn->prepare("UPDATE recuperacion SET usado = 1 WHERE token = ?");
+        $stmt->bind_param("s", $token);
+        $stmt->execute();
 
-            // Insertar usuario
-            $stmt = $conn->prepare("INSERT INTO usuarios (nombre, email, contraseña) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $nombre, $email, $hash);
-
-            if ($stmt->execute()) {
-                $success = "✅ Registro exitoso. Ya puedes iniciar sesión.";
-            } else {
-                $error = "❌ Error al registrar. Intenta de nuevo.";
-            }
-        }
-        $stmt->close();
+        $success = "✅ Contraseña actualizada correctamente. Ahora puedes iniciar sesión.";
     }
 }
 ?>
@@ -50,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Registro</title>
+    <title>Nueva Contraseña</title>
     <link rel="icon" href="media/icono.png" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -245,6 +257,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             text-decoration: underline;
         }
         
+        /* Mensaje de error fatal */
+        .error-fatal {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc3545;
+            max-width: 500px;
+            margin: 40px auto;
+        }
+        
+        .error-fatal p {
+            margin: 0;
+            color: #721c24;
+            font-size: 1.1em;
+        }
+        
         /* FOOTER */
         footer {
             background-color: rgb(230,230,230);
@@ -290,52 +320,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <nav>
                 <a href="index.php">Inicio</a>
                 <a href="login.php">Login</a>
-                <a href="registro.php" style="color: orangered;">Registro</a>
+                <a href="registro.php">Registro</a>
             </nav>
         </div>
     </header>
 
     <main class="container">
-        <div class="formulario">
-            <h2>📝 Registro de Usuario</h2>
-
-            <?php if($error): ?>
-                <div class="alert alert-error">❌ <?php echo $error; ?></div>
-            <?php endif; ?>
-
-            <?php if($success): ?>
-                <div class="alert alert-success">✅ <?php echo $success; ?></div>
-            <?php endif; ?>
-
-            <form method="POST" action="">
-                <div class="form-group">
-                    <label>👤 Nombre</label>
-                    <input type="text" name="nombre" placeholder="Ej: Juan Pérez" required>
-                </div>
-                <div class="form-group">
-                    <label>📧 Email</label>
-                    <input type="email" name="email" placeholder="tu@email.com" required>
-                </div>
-                <div class="form-group">
-                    <label>🔒 Contraseña</label>
-                    <input type="password" name="password" placeholder="••••••••" required>
-                </div>
-                <div class="form-group">
-                    <label>🔒 Confirmar Contraseña</label>
-                    <input type="password" name="confirm_password" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn">Registrarse</button>
-            </form>
-            
-            <div class="enlace">
-                ¿Ya tienes cuenta? <a href="login.php">Inicia sesión aquí</a>
+        <?php
+        // Mostrar error si el token no es válido
+        if (empty($token) || $result->num_rows == 0 || $now > $expira):
+        ?>
+            <div class="error-fatal">
+                <p>❌ <?php 
+                    if (empty($token) || $result->num_rows == 0) echo "Token no válido o ya usado";
+                    elseif ($now > $expira) echo "El enlace ha expirado. Solicita uno nuevo.";
+                ?></p>
+                <p style="margin-top: 15px;"><a href="recuperar.php" style="color: orangered;">Solicitar nuevo enlace</a></p>
             </div>
-        </div>
+        <?php else: ?>
+            <div class="formulario">
+                <h2>🔐 Nueva Contraseña</h2>
+
+                <?php if($error): ?>
+                    <div class="alert alert-error">❌ <?php echo $error; ?></div>
+                <?php endif; ?>
+
+                <?php if($success): ?>
+                    <div class="alert alert-success">✅ <?php echo $success; ?></div>
+                    <div class="enlace">
+                        <a href="login.php">🔑 Iniciar sesión</a>
+                    </div>
+                <?php else: ?>
+                    <form method="POST" action="">
+                        <div class="form-group">
+                            <label>🔒 Nueva Contraseña</label>
+                            <input type="password" name="password" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label>🔒 Confirmar Contraseña</label>
+                            <input type="password" name="confirm_password" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn">Actualizar Contraseña</button>
+                    </form>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 - Registro de Usuarios</p>
+            <p>&copy; 2026 - Restablecer Contraseña</p>
         </div>
     </footer>
 </body>

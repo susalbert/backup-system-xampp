@@ -40,49 +40,283 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Login - Mi Proyecto Web</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Login</title>
+    <link rel="icon" href="media/icono.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Fredoka', sans-serif !important;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            margin: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        h2 { font-size: 1.8em; }
+        p { font-size: 1em; }
+        
+        button, .btn {
+            font-size: 1em;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(255, 69, 0, 0.3);
+            color: white;
+            background: linear-gradient(135deg, orangered, #ff6600);
+            cursor: pointer;
+            font-family: 'Fredoka', sans-serif;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        button:hover, .btn:hover {
+            background: linear-gradient(135deg, #ff6600, #e65c00);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 69, 0, 0.4);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            padding: 0 20px;
+        }
+
+        /* HEADER */
+        header {
+            background-color: rgb(245,245,245);
+            width: 100%;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header .logo {
+            margin: 0;
+            padding: 25px 30px;
+            font-weight: bold;
+            color: orangered;
+            font-size: 1.6em;
+        }
+        
+        header .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header nav {
+            display: flex;
+            flex-direction: column;
+            text-align: center;
+            padding-bottom: 25px;
+        }
+        
+        header a {
+            padding: 5px 12px;
+            text-decoration: none;
+            font-weight: bold;
+            color: black;
+            font-family: 'Fredoka', sans-serif;
+        }
+        
+        header a:hover {
+            color: orangered;
+        }
+        
+        @media (min-width: 720px) {
+            header .container {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+            
+            header nav {
+                flex-direction: row;
+                padding-bottom: 0;
+                padding-right: 20px;
+            }
+            
+            body {
+                padding-top: 80px;
+            }
+        }
+        
+        /* FORMULARIO - Estilo XtremeGaming */
+        .formulario {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid orangered;
+        }
+        
+        .formulario h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+            font-family: 'Fredoka', sans-serif;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: orangered;
+            box-shadow: 0 0 0 3px rgba(255, 69, 0, 0.1);
+        }
+        
+        /* Alertas */
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 500;
+        }
+        
+        .alert-error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        /* Enlaces */
+        .enlace {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .enlace a {
+            color: orangered;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .enlace a:hover {
+            text-decoration: underline;
+        }
+        
+        /* FOOTER */
+        footer {
+            background-color: rgb(230,230,230);
+            padding: 40px 0;
+            margin-top: 60px;
+            text-align: center;
+        }
+        
+        footer p {
+            color: rgb(100,100,100);
+            margin: 0;
+            font-size: 0.9em;
+        }
+        
+        footer .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: auto;
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .formulario {
+                padding: 25px;
+                margin: 20px auto;
+            }
+            
+            h2 {
+                font-size: 1.5em;
+            }
+        }
+        
+        body, h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, ul, ol, div {
+            font-family: 'Fredoka', sans-serif !important;
+        }
+    </style>
 </head>
 <body>
     <header>
         <div class="container">
-            <div class="logo">Mi Proyecto Web</div>
+            <div class="logo">Web</div>
             <nav>
                 <a href="index.php">Inicio</a>
-                <a href="login.php">Login</a>
+                <a href="login.php" style="color: orangered;">Login</a>
                 <a href="registro.php">Registro</a>
             </nav>
         </div>
     </header>
 
-    <div class="container">
+    <main class="container">
         <div class="formulario">
-            <h2>Iniciar Sesion</h2>
+            <h2>🔑 Iniciar Sesión</h2>
 
             <?php if($error): ?>
-                <div class="alert alert-error"><?php echo $error; ?></div>
+                <div class="alert alert-error">❌ <?php echo $error; ?></div>
             <?php endif; ?>
 
             <form method="POST" action="">
                 <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" name="email" required>
+                    <label>📧 Email</label>
+                    <input type="email" name="email" placeholder="tu@email.com" required>
                 </div>
                 <div class="form-group">
-                    <label>Contraseña</label>
-                    <input type="password" name="password" required>
+                    <label>🔒 Contraseña</label>
+                    <input type="password" name="password" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn">Iniciar Sesion</button>
+                <button type="submit" class="btn">Iniciar Sesión</button>
             </form>
-            <p style="text-align:center; margin-top:15px;">
-                ¿No tienes cuenta? <a href="registro.php">Registrate</a>
-            </p>
+            
+            <div class="enlace">
+                <a href="recuperar.php">¿Olvidaste tu contraseña?</a>
+            </div>
+            <div class="enlace">
+                ¿No tienes cuenta? <a href="registro.php">Regístrate aquí</a>
+            </div>
         </div>
-    </div>
+    </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 - Sistema de Backup con XAMPP</p>
+            <p>&copy; 2026 - Inicio de Sesión</p>
         </div>
     </footer>
 </body>
